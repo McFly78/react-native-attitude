@@ -74,6 +74,11 @@ const Attitude = {
   // Sets the interval between event samples
   setInterval: function(interval) {
     RNAttitude.setInterval(interval);
+  },
+
+  // NM to know if Heading is calculated from a flat screen device position (Horizontal compass) or in Augmented Reality (Vertical Screen)
+  setIsAugmentedReality: function(isAugmentedReality) {
+    RNAttitude.setIsAugmentedReality(isAugmentedReality);
   }
   
 };
