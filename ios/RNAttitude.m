@@ -29,6 +29,7 @@ RCT_EXPORT_MODULE();
     inverseReferenceInUse = false;
     intervalMillis = (int)(1000 / UPDATERATEHZ);
     lastSampleTime = 0;
+    isAugmentedReality=false; //NM permet de savoir si on calcule le Heading en position Boussole avecle tel Horizontal ou en mode Realité Augmentée, false by default
     
     // Allocate and initialize the motion manager.
     motionManager = [[CMMotionManager alloc] init];
@@ -75,6 +76,14 @@ RCT_EXPORT_METHOD(reset)
 {
   inverseReferenceInUse = false;
 }
+
+// NM to know if Heading is calculated from a flat screen device position (Horizontal compass) or in Augmented Reality (Vertical Screen)
+
+RCT_EXPORT_METHOD(setIsAugmentedReality:(BOOL)isAugmentedRealityView)
+{
+  isAugmentedReality = isAugmentedRealityView;
+}
+
 
 // Sets the interval between event samples
 RCT_EXPORT_METHOD(setInterval:(NSInteger)interval)
@@ -131,6 +140,22 @@ RCT_EXPORT_METHOD(startObserving) {
         if(rollAdjustment != 0) {
           self->roll = normalizeRange(self->roll + rollAdjustment, -180, 180);
         }
+
+        // NM If we are in Augmented Reality we remove the roll from the heading so that heading in not modified when device in Vertical Position
+        // And we add 180° to the Heading if pitch >45° otherwise Heading is inverterted instead of being inverted when pitch is 90°
+        if (isAugmentedReality){
+          if ((self->pitch >= 45) ){ //&& (self->pitch < 90)){ // On ne dépasse jamais 90° car quand on regarde vers le haut pui en arriere le pitch rediminue 
+            //heading = heading - self->roll;
+            //heading = normalizeRange(heading +180, 1, 360);
+            heading = normalizeRange(heading + 180 + self->roll, 1, 360);
+          }
+          else {
+            //heading = heading - self->roll;
+            heading = normalizeRange(heading - self->roll, 1, 360);
+          }
+        }
+        
+
         // Send change events to the Javascript side via the React Native bridge
         @try {
           [self sendEventWithName:@"attitudeUpdate"
@@ -149,7 +174,10 @@ RCT_EXPORT_METHOD(startObserving) {
       }
     };
     
-    [motionManager startDeviceMotionUpdatesUsingReferenceFrame:CMAttitudeReferenceFrameXMagneticNorthZVertical toQueue:attitudeQueue withHandler:attitudeHandler];
+    //[motionManager startDeviceMotionUpdatesUsingReferenceFrame:CMAttitudeReferenceFrameXMagneticNorthZVertical toQueue:attitudeQueue withHandler:attitudeHandler];
+    [motionManager startDeviceMotionUpdatesUsingReferenceFrame:CMAttitudeReferenceFrameXTrueNorthZVertical toQueue:attitudeQueue withHandler:attitudeHandler];
+
+
   }
 }
 

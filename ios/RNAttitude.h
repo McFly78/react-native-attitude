@@ -17,6 +17,7 @@
     CMQuaternion inverseReferenceQuaternion;
     CMMotionManager *motionManager;
     NSOperationQueue *attitudeQueue;
+    bool isAugmentedReality; // NM to know if Heading is calculated from a flat screen device position (Horizontal compass) or in Augmented Reality (Vertical Screen)
 }
 
 @end
