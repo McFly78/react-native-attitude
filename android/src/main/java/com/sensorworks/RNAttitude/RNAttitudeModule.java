@@ -53,6 +53,7 @@ SensorEventListener {
   private float[] mRemappedRotationMatrix = new float[9];
   private float[] mRefAngles = new float[3];
   private float[] mInverseAngles = new float[3];
+  private boolean mIsAugmentedReality = false; //NM permet de savoir si on calcule le Heading en position Boussole avecle tel Horizontal ou en mode Realité Augmentée, false by default
 
   public RNAttitudeModule(ReactApplicationContext reactContext) {
     super(reactContext);
@@ -76,7 +77,13 @@ SensorEventListener {
     mIntervalMillis = interval;
   }
 
+  // NM to know if Heading is calculated from a flat screen device position (Horizontal compass) or in Augmented Reality (Vertical Screen)
   @ReactMethod
+   public void setIsAugmentedReality(boolean isAugmentedReality) {
+    mIsAugmentedReality = isAugmentedReality;
+  }
+
+   @ReactMethod
   // Determines if this device is capable of providing attitude updates - defaults to yes on IOS
   public void isSupported(Promise promise) {
     promise.resolve(mRotationSensor != null);
@@ -134,31 +141,42 @@ SensorEventListener {
     final int worldAxisForDeviceAxisX;
     final int worldAxisForDeviceAxisY;
 
-    switch (mWindowManager.getDefaultDisplay().getRotation()) {
-    case Surface.ROTATION_0:
-    default:
-      worldAxisForDeviceAxisX = SensorManager.AXIS_X;
-      worldAxisForDeviceAxisY = SensorManager.AXIS_Z;
-      break;
-    case Surface.ROTATION_90:
-      worldAxisForDeviceAxisX = SensorManager.AXIS_Z;
-      worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X;
-      break;
-    case Surface.ROTATION_180:
-      worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X;
-      worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z;
-      break;
-    case Surface.ROTATION_270:
-      worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z;
-      worldAxisForDeviceAxisY = SensorManager.AXIS_X;
-      break;
+    if (mIsAugmentedReality) { // Test Added by by NM to know if we must calculate Heading based on Augmented Reality position device
+      switch (mWindowManager.getDefaultDisplay().getRotation()) {
+      case Surface.ROTATION_0:
+      default:
+        worldAxisForDeviceAxisX = SensorManager.AXIS_X;
+        worldAxisForDeviceAxisY = SensorManager.AXIS_Z;
+        break;
+      case Surface.ROTATION_90:
+        worldAxisForDeviceAxisX = SensorManager.AXIS_Z;
+        worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_X;
+        break;
+      case Surface.ROTATION_180:
+        worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_X;
+        worldAxisForDeviceAxisY = SensorManager.AXIS_MINUS_Z;
+        break;
+      case Surface.ROTATION_270:
+        worldAxisForDeviceAxisX = SensorManager.AXIS_MINUS_Z;
+        worldAxisForDeviceAxisY = SensorManager.AXIS_X;
+        break;
+      }
+    } 
+    else { // NM can be removed but during compilation worldAxisForDeviceAxisX and worldAxisForDeviceAxisY needs to have a value
+      worldAxisForDeviceAxisX = 0; //SensorManager.AXIS_X;
+      worldAxisForDeviceAxisY = 0; //SensorManager.AXIS_Y;
     }
 
-    SensorManager.remapCoordinateSystem(
-    mRotationMatrix, worldAxisForDeviceAxisX, worldAxisForDeviceAxisY, mRemappedRotationMatrix);
+    if (mIsAugmentedReality) { //Test Added by by NM to know if we must calculate Heading based on Augmented Reality position device. If mIsAugmentedReality, matrice rotation to device Vertical position
+      SensorManager.remapCoordinateSystem(
+      mRotationMatrix, worldAxisForDeviceAxisX, worldAxisForDeviceAxisY, mRemappedRotationMatrix);
+      
+      SensorManager.getOrientation(mRemappedRotationMatrix, mRefAngles);
+    } else {
+        SensorManager.getOrientation(mRotationMatrix, mRefAngles);
+    }
 
-    SensorManager.getOrientation(mRemappedRotationMatrix, mRefAngles);
-
+    
     float[] angles;
     if (mInverseReferenceInUse) {
       angles = getInvertedAngles(mRefAngles, mInverseAngles);
