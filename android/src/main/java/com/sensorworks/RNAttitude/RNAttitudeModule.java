@@ -142,6 +142,7 @@ SensorEventListener {
     final int worldAxisForDeviceAxisY;
 
     if (mIsAugmentedReality) { // Test Added by by NM to know if we must calculate Heading based on Augmented Reality position device
+      // je ne gère qye le cas Surface.ROTATION_0 car je ne vais utiliser l'App qu'en mode portrait
       switch (mWindowManager.getDefaultDisplay().getRotation()) {
       case Surface.ROTATION_0:
       default:
@@ -163,17 +164,19 @@ SensorEventListener {
       }
     } 
     else { // NM can be removed but during compilation worldAxisForDeviceAxisX and worldAxisForDeviceAxisY needs to have a value
-      worldAxisForDeviceAxisX = 0; //SensorManager.AXIS_X;
-      worldAxisForDeviceAxisY = 0; //SensorManager.AXIS_Y;
+      // NM Finalement, en mode Réalité augmenté ou pas j'utilise les même valeur
+      worldAxisForDeviceAxisX = SensorManager.AXIS_X;
+      worldAxisForDeviceAxisY = SensorManager.AXIS_Z;
     }
 
+    // NM Finalement je fais la meme chose que je sois en mode réalité augmenté ou pas
     if (mIsAugmentedReality) { //Test Added by by NM to know if we must calculate Heading based on Augmented Reality position device. If mIsAugmentedReality, matrice rotation to device Vertical position
-      SensorManager.remapCoordinateSystem(
-      mRotationMatrix, worldAxisForDeviceAxisX, worldAxisForDeviceAxisY, mRemappedRotationMatrix);
-      
+      SensorManager.remapCoordinateSystem(mRotationMatrix, worldAxisForDeviceAxisX, worldAxisForDeviceAxisY, mRemappedRotationMatrix);
       SensorManager.getOrientation(mRemappedRotationMatrix, mRefAngles);
     } else {
-        SensorManager.getOrientation(mRotationMatrix, mRefAngles);
+      SensorManager.remapCoordinateSystem(mRotationMatrix, worldAxisForDeviceAxisX, worldAxisForDeviceAxisY, mRemappedRotationMatrix);
+      SensorManager.getOrientation(mRemappedRotationMatrix, mRefAngles);
+      //SensorManager.getOrientation(mRotationMatrix, mRefAngles); NM car la rotation ne va pas quand j'affiche la boussole et que je suis en mode portrait quand j'inclien le tel à gauche ou droite (roll)
     }
 
     
@@ -189,6 +192,11 @@ SensorEventListener {
     double pitch = -Math.toDegrees(angles[PITCH]);
     double roll = Math.toDegrees(angles[ROLL]);
     double yaw = Math.toDegrees(angles[YAW]);
+
+    // NM Si on n'est pas en réalité augmenté il faut rajouter le roll au yaw.
+    if (!mIsAugmentedReality) {
+      yaw = yaw + roll;
+    }
 
     // convert -180<-->180 yaw values to 0-->360
     yaw = yaw < 0 ? yaw + 360 : yaw;
